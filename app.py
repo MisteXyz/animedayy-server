@@ -71,7 +71,9 @@ def init_update_file():
     """Initialize update file with default data"""
     try:
         # Create directory if doesn't exist (for Railway volume)
-        os.makedirs(os.path.dirname(UPDATE_DATA_FILE), exist_ok=True)
+        dir_path = os.path.dirname(UPDATE_DATA_FILE)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
     except:
         pass
         
@@ -112,7 +114,9 @@ def init_update_file():
 def init_license_file():
     """Initialize license file"""
     try:
-        os.makedirs(os.path.dirname(LICENSE_DATA_FILE), exist_ok=True)
+        dir_path = os.path.dirname(LICENSE_DATA_FILE)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
     except:
         pass
         
@@ -394,8 +398,107 @@ def admin_panel():
                          licenses=license_data['licenses'],
                          stats=stats)
 
-# ... (rest of your admin routes: /admin/update, /admin/license/add, etc.)
-# Copy dari app.py original Anda
+@app.route('/admin/update', methods=['POST'])
+def update_app_info():
+    """Update app info"""
+    try:
+        version_code = int(request.form.get('version_code', 1))
+        version_name = request.form.get('version_name', '1.0.0')
+        update_required = request.form.get('update_required') == 'on'
+        update_title = request.form.get('update_title', '')
+        update_message = request.form.get('update_message', '')
+        download_url = request.form.get('download_url', '')
+        
+        # Maintenance mode
+        maintenance_mode = request.form.get('maintenance_mode') == 'on'
+        maintenance_title = request.form.get('maintenance_title', 'Aplikasi Sedang Maintenance')
+        maintenance_message = request.form.get('maintenance_message', '')
+        maintenance_estimated_end = request.form.get('maintenance_estimated_end', '')
+        
+        # What's new
+        whats_new_text = request.form.get('whats_new', '')
+        whats_new = [item.strip() for item in whats_new_text.split('\n') if item.strip()]
+        
+        update_info = {
+            'version_code': version_code,
+            'version_name': version_name,
+            'update_required': update_required,
+            'update_title': update_title,
+            'update_message': update_message,
+            'download_url': download_url,
+            'whats_new': whats_new,
+            'maintenance_mode': maintenance_mode,
+            'maintenance_title': maintenance_title,
+            'maintenance_message': maintenance_message,
+            'maintenance_estimated_end': maintenance_estimated_end
+        }
+        
+        if save_update_info(update_info):
+            return redirect(url_for('admin_panel'))
+        else:
+            return "Error saving update info", 500
+            
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/admin/license/add', methods=['POST'])
+def add_license():
+    """Generate new licenses"""
+    try:
+        count = int(request.form.get('count', 1))
+        notes = request.form.get('notes', '')
+        
+        if count < 1 or count > 100:
+            return jsonify({'error': 'Jumlah harus antara 1-100'}), 400
+        
+        license_data = load_licenses()
+        
+        for _ in range(count):
+            new_license = {
+                'code': generate_license_code(),
+                'status': 'active',
+                'device_id': '',
+                'device_name': '',
+                'activated_at': '',
+                'created_at': datetime.now().isoformat(),
+                'notes': notes
+            }
+            license_data['licenses'].append(new_license)
+        
+        save_licenses(license_data)
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/admin/license/revoke/<license_code>', methods=['POST'])
+def revoke_license(license_code):
+    """Revoke a license"""
+    try:
+        license_data = load_licenses()
+        
+        for lic in license_data['licenses']:
+            if lic['code'] == license_code:
+                lic['status'] = 'revoked'
+                break
+        
+        save_licenses(license_data)
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
+@app.route('/admin/license/delete/<license_code>', methods=['POST'])
+def delete_license(license_code):
+    """Delete a license"""
+    try:
+        license_data = load_licenses()
+        license_data['licenses'] = [l for l in license_data['licenses'] if l['code'] != license_code]
+        save_licenses(license_data)
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        return f"Error: {str(e)}", 500
 
 if __name__ == '__main__':
     print(f"\n{'='*60}")
