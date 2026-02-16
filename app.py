@@ -8,30 +8,23 @@ import string
 
 app = Flask(__name__)
 
-# ✅ RAILWAY: Get port from environment variable
-PORT = int(os.environ.get('PORT', 5000))
-
-# ✅ RAILWAY: Determine file paths based on environment
+# File untuk menyimpan data
 def get_data_file_path():
     """Determine the correct path based on environment"""
     
     # Check if running on Railway
     if os.environ.get('RAILWAY_ENVIRONMENT'):
-        # Railway: use volume mount if available, otherwise current directory
-        volume_path = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH')
-        if volume_path:
-            return os.path.join(volume_path, 'update_info.json')
-        return '/app/update_info.json'
-    
-    # Check if running on PythonAnywhere
-    if 'PYTHONANYWHERE_DOMAIN' in os.environ:
         return 'update_info.json'
     
-    # Check if /tmp exists (Vercel, other platforms)
+    # Check if running with gunicorn (production)
+    if 'gunicorn' in sys.modules:
+        return 'update_info.json'
+    
+    # Check if /tmp exists (Vercel, Linux)
     if os.path.exists('/tmp'):
         return '/tmp/update_info.json'
     
-    # Default: current directory (local development)
+    # Default: current directory (Termux, Windows, local dev)
     return 'update_info.json'
 
 def get_license_file_path():
@@ -69,14 +62,6 @@ def get_default_license_data():
 # Initialize data files
 def init_update_file():
     """Initialize update file with default data"""
-    try:
-        # Create directory if doesn't exist (for Railway volume)
-        dir_path = os.path.dirname(UPDATE_DATA_FILE)
-        if dir_path:
-            os.makedirs(dir_path, exist_ok=True)
-    except:
-        pass
-        
     if not os.path.exists(UPDATE_DATA_FILE):
         with open(UPDATE_DATA_FILE, 'w') as f:
             json.dump(get_default_data(), f, indent=2)
@@ -113,13 +98,6 @@ def init_update_file():
 
 def init_license_file():
     """Initialize license file"""
-    try:
-        dir_path = os.path.dirname(LICENSE_DATA_FILE)
-        if dir_path:
-            os.makedirs(dir_path, exist_ok=True)
-    except:
-        pass
-        
     if not os.path.exists(LICENSE_DATA_FILE):
         with open(LICENSE_DATA_FILE, 'w') as f:
             json.dump(get_default_license_data(), f, indent=2)
@@ -195,62 +173,231 @@ def save_licenses(data):
 
 def generate_license_code(length=16):
     """Generate random license code"""
+    # Format: XXXX-XXXX-XXXX-XXXX
     chars = string.ascii_uppercase + string.digits
     code = ''.join(secrets.choice(chars) for _ in range(length))
+    # Format dengan dash setiap 4 karakter
     return '-'.join([code[i:i+4] for i in range(0, len(code), 4)])
 
 # ===========================================
-# HEALTH CHECK (untuk Railway)
-# ===========================================
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Railway"""
-    return jsonify({
-        'status': 'healthy',
-        'environment': os.environ.get('RAILWAY_ENVIRONMENT', 'local'),
-        'timestamp': datetime.now().isoformat()
-    })
-
-# ===========================================
-# API ENDPOINTS
+# ADMIN PANEL ROUTES
 # ===========================================
 
-@app.route('/api/maintenance-status', methods=['GET'])
-def maintenance_status():
-    """Check if app is in maintenance mode"""
+@app.route('/')
+def admin_panel():
+    """Admin panel dengan update info dan license management"""
     update_info = load_update_info()
-    return jsonify({
-        'maintenance_mode': update_info.get('maintenance_mode', False),
-        'maintenance_title': update_info.get('maintenance_title', ''),
-        'maintenance_message': update_info.get('maintenance_message', ''),
-        'maintenance_estimated_end': update_info.get('maintenance_estimated_end', '')
-    })
+    license_data = load_licenses()
+    
+    # Statistik lisensi
+    total_licenses = len(license_data['licenses'])
+    active_licenses = len([l for l in license_data['licenses'] if l['status'] == 'active'])
+    used_licenses = len([l for l in license_data['licenses'] if l['status'] == 'used'])
+    
+    stats = {
+        'total': total_licenses,
+        'active': active_licenses,
+        'used': used_licenses
+    }
+    
+    return render_template('admin.html', 
+                         update_info=update_info, 
+                         licenses=license_data['licenses'],
+                         stats=stats)
 
-@app.route('/api/check-update', methods=['GET'])
-def check_update():
-    """Check if there's an app update available"""
+@app.route('/admin/update', methods=['POST'])
+def update_app_info():
+    """Endpoint untuk submit form update info"""
     try:
-        current_version_code = int(request.args.get('current_version_code', 0))
-        update_info = load_update_info()
+        version_code = int(request.form.get('version_code', 1))
+        version_name = request.form.get('version_name', '1.0.0')
+        update_required = request.form.get('update_required') == 'on'
+        update_title = request.form.get('update_title', '')
+        update_message = request.form.get('update_message', '')
+        download_url = request.form.get('download_url', '')
         
-        latest_version_code = update_info.get('version_code', 1)
-        has_update = current_version_code < latest_version_code
+        # Maintenance mode
+        maintenance_mode = request.form.get('maintenance_mode') == 'on'
+        maintenance_title = request.form.get('maintenance_title', 'Aplikasi Sedang Maintenance')
+        maintenance_message = request.form.get('maintenance_message', '')
+        maintenance_estimated_end = request.form.get('maintenance_estimated_end', '')
+        
+        # Whats new
+        whats_new = []
+        whats_new_items = request.form.getlist('whats_new[]')
+        for item in whats_new_items:
+            if item.strip():
+                whats_new.append(item.strip())
+        
+        data = {
+            'version_code': version_code,
+            'version_name': version_name,
+            'update_required': update_required,
+            'update_title': update_title,
+            'update_message': update_message,
+            'download_url': download_url,
+            'whats_new': whats_new,
+            'maintenance_mode': maintenance_mode,
+            'maintenance_title': maintenance_title,
+            'maintenance_message': maintenance_message,
+            'maintenance_estimated_end': maintenance_estimated_end
+        }
+        
+        save_update_info(data)
+        
+        return redirect(url_for('admin_panel'))
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/toggle-maintenance', methods=['POST'])
+def toggle_maintenance():
+    """Quick toggle maintenance mode"""
+    try:
+        update_info = load_update_info()
+        update_info['maintenance_mode'] = not update_info['maintenance_mode']
+        save_update_info(update_info)
         
         return jsonify({
-            'has_update': has_update,
-            'latest_version_code': latest_version_code,
-            'latest_version_name': update_info.get('version_name', '1.0.0'),
-            'update_required': update_info.get('update_required', False),
-            'update_title': update_info.get('update_title', ''),
-            'update_message': update_info.get('update_message', ''),
-            'download_url': update_info.get('download_url', ''),
-            'whats_new': update_info.get('whats_new', [])
+            'success': True,
+            'maintenance_mode': update_info['maintenance_mode']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===========================================
+# LICENSE MANAGEMENT ROUTES
+# ===========================================
+
+@app.route('/admin/generate-licenses', methods=['POST'])
+def generate_licenses():
+    """Generate multiple license codes"""
+    try:
+        count = int(request.form.get('count', 1))
+        note = request.form.get('note', '')
+        
+        if count < 1 or count > 100:
+            return jsonify({'error': 'Count must be between 1 and 100'}), 400
+        
+        license_data = load_licenses()
+        new_licenses = []
+        
+        for _ in range(count):
+            license_code = generate_license_code()
+            license_obj = {
+                'code': license_code,
+                'status': 'active',  # active, used, revoked
+                'device_id': None,
+                'device_name': None,
+                'activated_at': None,
+                'created_at': datetime.now().isoformat(),
+                'note': note
+            }
+            license_data['licenses'].append(license_obj)
+            new_licenses.append(license_code)
+        
+        save_licenses(license_data)
+        
+        return jsonify({
+            'success': True,
+            'count': count,
+            'licenses': new_licenses
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/delete-license/<license_code>', methods=['POST'])
+def delete_license(license_code):
+    """Delete a license"""
+    try:
+        license_data = load_licenses()
+        license_data['licenses'] = [l for l in license_data['licenses'] if l['code'] != license_code]
+        save_licenses(license_data)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/revoke-license/<license_code>', methods=['POST'])
+def revoke_license(license_code):
+    """Revoke a license (deactivate device)"""
+    try:
+        license_data = load_licenses()
+        
+        for license_obj in license_data['licenses']:
+            if license_obj['code'] == license_code:
+                license_obj['status'] = 'active'
+                license_obj['device_id'] = None
+                license_obj['device_name'] = None
+                license_obj['activated_at'] = None
+                break
+        
+        save_licenses(license_data)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===========================================
+# API ENDPOINTS FOR ANDROID APP
+# ===========================================
+
+@app.route('/api/check-update', methods=['GET'])
+def check_update():
+    """Endpoint untuk aplikasi Android cek update"""
+    try:
+        current_version = int(request.args.get('current_version_code', 1))
+        update_info = load_update_info()
+        
+        latest_version = update_info['version_code']
+        has_update = latest_version > current_version
+        
+        response = {
+            'has_update': has_update,
+            'current_version': current_version,
+            'latest_version': latest_version,
+            'latest_version_name': update_info['version_name'],
+            'update_required': update_info['update_required'] and has_update,
+            'update_title': update_info['update_title'],
+            'update_message': update_info['update_message'],
+            'download_url': update_info['download_url'],
+            'whats_new': update_info['whats_new'],
+            'maintenance_mode': update_info.get('maintenance_mode', False),
+            'maintenance_title': update_info.get('maintenance_title', 'Aplikasi Sedang Maintenance'),
+            'maintenance_message': update_info.get('maintenance_message', ''),
+            'maintenance_estimated_end': update_info.get('maintenance_estimated_end', ''),
+            'last_updated': update_info['last_updated']
+        }
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/update-info', methods=['GET'])
+def get_update_info():
+    """Get full update information"""
+    update_info = load_update_info()
+    return jsonify(update_info)
+
+@app.route('/api/maintenance-status', methods=['GET'])
+def maintenance_status():
+    """Quick check for maintenance status only"""
+    try:
+        update_info = load_update_info()
         return jsonify({
-            'error': str(e)
-        }), 500
+            'maintenance_mode': update_info.get('maintenance_mode', False),
+            'maintenance_title': update_info.get('maintenance_title', ''),
+            'maintenance_message': update_info.get('maintenance_message', ''),
+            'maintenance_estimated_end': update_info.get('maintenance_estimated_end', '')
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ===========================================
+# LICENSE API ENDPOINTS
+# ===========================================
 
 @app.route('/api/validate-license', methods=['POST'])
 def validate_license():
@@ -290,6 +437,7 @@ def validate_license():
             })
         
         if license_obj['status'] == 'used':
+            # Cek apakah device yang sama
             if license_obj['device_id'] == device_id:
                 return jsonify({
                     'success': True,
@@ -306,7 +454,7 @@ def validate_license():
                     'message': f'Kode lisensi sudah digunakan di perangkat lain ({license_obj["device_name"]})'
                 })
         
-        # Aktivasi lisensi
+        # Aktivasi lisensi untuk perangkat ini
         if license_obj['status'] == 'active':
             license_obj['status'] = 'used'
             license_obj['device_id'] = device_id
@@ -351,6 +499,7 @@ def check_license():
         
         license_data = load_licenses()
         
+        # Cari lisensi berdasarkan device_id
         for license_obj in license_data['licenses']:
             if license_obj['device_id'] == device_id and license_obj['status'] == 'used':
                 return jsonify({
@@ -374,144 +523,13 @@ def check_license():
             'message': f'Error: {str(e)}'
         }), 500
 
-# ===========================================
-# ADMIN PANEL
-# ===========================================
-@app.route('/')
-def admin_panel():
-    """Admin panel"""
-    update_info = load_update_info()
-    license_data = load_licenses()
-    
-    total_licenses = len(license_data['licenses'])
-    active_licenses = len([l for l in license_data['licenses'] if l['status'] == 'active'])
-    used_licenses = len([l for l in license_data['licenses'] if l['status'] == 'used'])
-    
-    stats = {
-        'total': total_licenses,
-        'active': active_licenses,
-        'used': used_licenses
-    }
-    
-    return render_template('admin.html', 
-                         update_info=update_info, 
-                         licenses=license_data['licenses'],
-                         stats=stats)
-
-@app.route('/admin/update', methods=['POST'])
-def update_app_info():
-    """Update app info"""
-    try:
-        version_code = int(request.form.get('version_code', 1))
-        version_name = request.form.get('version_name', '1.0.0')
-        update_required = request.form.get('update_required') == 'on'
-        update_title = request.form.get('update_title', '')
-        update_message = request.form.get('update_message', '')
-        download_url = request.form.get('download_url', '')
-        
-        # Maintenance mode
-        maintenance_mode = request.form.get('maintenance_mode') == 'on'
-        maintenance_title = request.form.get('maintenance_title', 'Aplikasi Sedang Maintenance')
-        maintenance_message = request.form.get('maintenance_message', '')
-        maintenance_estimated_end = request.form.get('maintenance_estimated_end', '')
-        
-        # What's new
-        whats_new_text = request.form.get('whats_new', '')
-        whats_new = [item.strip() for item in whats_new_text.split('\n') if item.strip()]
-        
-        update_info = {
-            'version_code': version_code,
-            'version_name': version_name,
-            'update_required': update_required,
-            'update_title': update_title,
-            'update_message': update_message,
-            'download_url': download_url,
-            'whats_new': whats_new,
-            'maintenance_mode': maintenance_mode,
-            'maintenance_title': maintenance_title,
-            'maintenance_message': maintenance_message,
-            'maintenance_estimated_end': maintenance_estimated_end
-        }
-        
-        if save_update_info(update_info):
-            return redirect(url_for('admin_panel'))
-        else:
-            return "Error saving update info", 500
-            
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-
-@app.route('/admin/license/add', methods=['POST'])
-def add_license():
-    """Generate new licenses"""
-    try:
-        count = int(request.form.get('count', 1))
-        notes = request.form.get('notes', '')
-        
-        if count < 1 or count > 100:
-            return jsonify({'error': 'Jumlah harus antara 1-100'}), 400
-        
-        license_data = load_licenses()
-        
-        for _ in range(count):
-            new_license = {
-                'code': generate_license_code(),
-                'status': 'active',
-                'device_id': '',
-                'device_name': '',
-                'activated_at': '',
-                'created_at': datetime.now().isoformat(),
-                'notes': notes
-            }
-            license_data['licenses'].append(new_license)
-        
-        save_licenses(license_data)
-        return redirect(url_for('admin_panel'))
-        
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-
-@app.route('/admin/license/revoke/<license_code>', methods=['POST'])
-def revoke_license(license_code):
-    """Revoke a license"""
-    try:
-        license_data = load_licenses()
-        
-        for lic in license_data['licenses']:
-            if lic['code'] == license_code:
-                lic['status'] = 'revoked'
-                break
-        
-        save_licenses(license_data)
-        return redirect(url_for('admin_panel'))
-        
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-
-@app.route('/admin/license/delete/<license_code>', methods=['POST'])
-def delete_license(license_code):
-    """Delete a license"""
-    try:
-        license_data = load_licenses()
-        license_data['licenses'] = [l for l in license_data['licenses'] if l['code'] != license_code]
-        save_licenses(license_data)
-        return redirect(url_for('admin_panel'))
-        
-    except Exception as e:
-        return f"Error: {str(e)}", 500
-
 if __name__ == '__main__':
-    print(f"\n{'='*60}")
+    print(f"\n{'='*50}")
     print(f"📱 AnimeDayy Update & License Manager")
-    print(f"{'='*60}")
+    print(f"{'='*50}")
     print(f"📁 Update Data: {UPDATE_DATA_FILE}")
     print(f"🔑 License Data: {LICENSE_DATA_FILE}")
-    print(f"🌐 Server: http://0.0.0.0:{PORT}")
-    print(f"🚂 Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'local')}")
-    print(f"💾 Volume Mount: {os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', 'Not configured')}")
-    print(f"{'='*60}\n")
+    print(f"🌐 Server: http://0.0.0.0:5000")
+    print(f"{'='*50}\n")
     
-    # ✅ Production mode for Railway
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
-    
-    app.run(host='0.0.0.0', port=PORT, debug=debug_mode)
+    app.run(debug=True, host='0.0.0.0', port=5000)
