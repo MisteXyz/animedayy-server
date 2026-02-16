@@ -1,1 +1,1114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - License & Update Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
 
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            background: #1a1a2e;
+            color: #fff;
+            border: 2px solid #2d2d44;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-color: #3b82f6;
+        }
+
+        .tab-button:hover {
+            border-color: #3b82f6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #2d2d44;
+        }
+        
+        /* LICENSE STATS CARD */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        /* MAINTENANCE TOGGLE CARD */
+        .maintenance-toggle-card {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+            border: none;
+        }
+        
+        .maintenance-toggle-card.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .toggle-info h3 {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+        
+        .toggle-info p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 80px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        
+        .toggle-switch.active {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .toggle-switch.active .toggle-slider {
+            left: 44px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .status-badge.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #ff6b6b;
+        }
+        
+        .status-badge.inactive {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #b8b8d1;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        input[type="datetime-local"],
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: #0f0f1e;
+            border: 2px solid #2d2d44;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: #16162e;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .whats-new-section {
+            background: #0f0f1e;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .whats-new-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .whats-new-item input {
+            flex: 1;
+        }
+        
+        .btn-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        
+        .btn-remove:hover {
+            background: #ff5252;
+        }
+        
+        .btn-add {
+            background: #4ecca3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-add:hover {
+            background: #3db88f;
+        }
+        
+        .btn-submit {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4ecca3 0%, #3db88f 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-warning {
+            background: #ffa502;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .btn-warning:hover {
+            background: #ff8800;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .current-info {
+            background: #0f0f1e;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #2d2d44;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #b8b8d1;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            color: #fff;
+            font-weight: 600;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 5px;
+        }
+        
+        .maintenance-section {
+            background: #0f0f1e;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #ff6b6b;
+            margin-top: 20px;
+        }
+        
+        .maintenance-section h3 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        /* LICENSE TABLE */
+        .license-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .license-table th,
+        .license-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #2d2d44;
+        }
+
+        .license-table th {
+            background: #0f0f1e;
+            font-weight: 600;
+            color: #b8b8d1;
+            position: sticky;
+            top: 0;
+        }
+
+        .license-table tr:hover {
+            background: #0f0f1e;
+        }
+
+        .license-code {
+            font-family: monospace;
+            background: #0f0f1e;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #4ecca3;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .license-code:hover {
+            background: #16162e;
+        }
+
+        .status-active {
+            background: #4ecca3;
+            color: #0f0f1e;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-used {
+            background: #ffa502;
+            color: #0f0f1e;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-revoked {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .generate-form {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .generate-form .form-group {
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+        }
+
+        .license-list {
+            background: #0f0f1e;
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .license-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #1a1a2e;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .license-table {
+                font-size: 12px;
+            }
+
+            .license-table th,
+            .license-table td {
+                padding: 8px 4px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-buttons button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 AnimeDayy - License & Update Manager</h1>
+            <p>Kelola lisensi aplikasi dan update dari sini</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('licenses')">🔑 License Management</button>
+            <button class="tab-button" onclick="switchTab('update')">📱 App Update</button>
+            <button class="tab-button" onclick="switchTab('maintenance')">🔧 Maintenance</button>
+        </div>
+
+        <!-- TAB: LICENSE MANAGEMENT -->
+        <div id="tab-licenses" class="tab-content active">
+            <!-- License Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>{{ stats.total }}</h3>
+                    <p>Total Lisensi</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.active }}</h3>
+                    <p>Belum Digunakan</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{{ stats.used }}</h3>
+                    <p>Sudah Digunakan</p>
+                </div>
+            </div>
+
+            <!-- Generate Licenses -->
+            <div class="card">
+                <h2 class="section-title">🆕 Generate Lisensi Baru</h2>
+                <form class="generate-form" onsubmit="generateLicenses(event)">
+                    <div class="form-group">
+                        <label for="license_count">Jumlah Lisensi</label>
+                        <input type="number" id="license_count" min="1" max="100" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="license_note">Catatan (opsional)</label>
+                        <input type="text" id="license_note" placeholder="Contoh: Batch 1 - Januari 2026">
+                    </div>
+                    <button type="submit" class="btn-primary">Generate</button>
+                </form>
+            </div>
+
+            <!-- License List -->
+            <div class="card">
+                <h2 class="section-title">📋 Daftar Lisensi</h2>
+                <div style="overflow-x: auto;">
+                    <table class="license-table">
+                        <thead>
+                            <tr>
+                                <th>Kode Lisensi</th>
+                                <th>Status</th>
+                                <th>Perangkat</th>
+                                <th>Diaktifkan</th>
+                                <th>Catatan</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="license-table-body">
+                            {% if licenses %}
+                                {% for license in licenses %}
+                                <tr>
+                                    <td>
+                                        <span class="license-code" onclick="copyToClipboard('{{ license.code }}')">
+                                            {{ license.code }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if license.status == 'active' %}
+                                        <span class="status-active">Aktif</span>
+                                        {% elif license.status == 'used' %}
+                                        <span class="status-used">Digunakan</span>
+                                        {% else %}
+                                        <span class="status-revoked">Dicabut</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if license.device_name %}
+                                        {{ license.device_name }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if license.activated_at %}
+                                        {{ license.activated_at[:10] }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ license.note if license.note else '-' }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            {% if license.status == 'used' %}
+                                            <button class="btn-warning" onclick="revokeLicense('{{ license.code }}')">
+                                                Reset
+                                            </button>
+                                            {% endif %}
+                                            <button class="btn-danger" onclick="deleteLicense('{{ license.code }}')">
+                                                Hapus
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 30px; color: #9ca3af;">
+                                        Belum ada lisensi. Generate lisensi baru di atas.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: APP UPDATE -->
+        <div id="tab-update" class="tab-content">
+            <!-- Current Info -->
+            <div class="card">
+                <h2 class="section-title">ℹ️ Informasi Update Saat Ini</h2>
+                <div class="current-info">
+                    <div class="info-row">
+                        <span class="info-label">Version Code:</span>
+                        <span class="info-value">{{ update_info.version_code }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Version Name:</span>
+                        <span class="info-value">{{ update_info.version_name }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Update Required:</span>
+                        <span class="info-value">{{ 'Ya' if update_info.update_required else 'Tidak' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Last Updated:</span>
+                        <span class="info-value">{{ update_info.last_updated[:19] }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Form -->
+            <div class="card">
+                <h2 class="section-title">✏️ Update Informasi Aplikasi</h2>
+                <form action="/admin/update" method="POST">
+                    <div class="form-group">
+                        <label for="version_code">Version Code (angka, harus lebih besar dari sebelumnya)</label>
+                        <input type="number" id="version_code" name="version_code" 
+                               value="{{ update_info.version_code }}" required min="1">
+                        <p class="help-text">Contoh: 1, 2, 3, dst. Increment setiap ada update baru</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="version_name">Version Name (untuk ditampilkan ke user)</label>
+                        <input type="text" id="version_name" name="version_name" 
+                               value="{{ update_info.version_name }}" required 
+                               placeholder="Contoh: 1.0.0, 2.1.5">
+                        <p class="help-text">Format: Major.Minor.Patch (contoh: 1.2.3)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="update_required" name="update_required"
+                                   {% if update_info.update_required %}checked{% endif %}>
+                            <label for="update_required" style="margin: 0;">
+                                <strong>Update Wajib</strong> - User harus update sebelum bisa menggunakan app
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="update_title">Judul Update (ditampilkan di dialog)</label>
+                        <input type="text" id="update_title" name="update_title" 
+                               value="{{ update_info.update_title }}" 
+                               placeholder="Contoh: Update Tersedia!">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="update_message">Pesan Update (deskripsi singkat)</label>
+                        <textarea id="update_message" name="update_message" 
+                                  placeholder="Contoh: Versi baru aplikasi AnimeDayy sudah tersedia dengan fitur-fitur baru dan perbaikan bug!">{{ update_info.update_message }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="download_url">Link Download APK</label>
+                        <input type="text" id="download_url" name="download_url" 
+                               value="{{ update_info.download_url }}" 
+                               placeholder="https://example.com/AnimeDayy-v1.0.0.apk">
+                        <p class="help-text">URL lengkap untuk download file APK</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Yang Baru di Versi Ini</label>
+                        <div class="whats-new-section">
+                            <div id="whats-new-container">
+                                {% if update_info.whats_new %}
+                                    {% for item in update_info.whats_new %}
+                                    <div class="whats-new-item">
+                                        <input type="text" name="whats_new[]" 
+                                               value="{{ item }}" 
+                                               placeholder="Contoh: Fitur bookmark anime">
+                                        <button type="button" class="btn-remove" onclick="removeWhatsNew(this)">✕</button>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="whats-new-item">
+                                        <input type="text" name="whats_new[]" 
+                                               placeholder="Contoh: Fitur bookmark anime">
+                                        <button type="button" class="btn-remove" onclick="removeWhatsNew(this)">✕</button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn-add" onclick="addWhatsNew()">+ Tambah Item</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">💾 Simpan Pengaturan Update</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB: MAINTENANCE -->
+        <div id="tab-maintenance" class="tab-content">
+            <!-- Quick Maintenance Toggle -->
+            <div class="card maintenance-toggle-card {% if update_info.maintenance_mode %}active{% endif %}" id="maintenanceCard">
+                <div class="toggle-container">
+                    <div class="toggle-info">
+                        <h3>⚠️ Maintenance Mode</h3>
+                        <p>Toggle cepat untuk mengaktifkan/menonaktifkan maintenance</p>
+                        <div class="status-badge {% if update_info.maintenance_mode %}active{% else %}inactive{% endif %}" id="maintenanceStatus">
+                            {% if update_info.maintenance_mode %}
+                            ⚠️ APLIKASI SEDANG MAINTENANCE
+                            {% else %}
+                            ✅ Aplikasi Normal
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="toggle-switch {% if update_info.maintenance_mode %}active{% endif %}" id="maintenanceToggle" onclick="toggleMaintenance()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Settings -->
+            <div class="card">
+                <h2 class="section-title">🔧 Pengaturan Maintenance</h2>
+                <form action="/admin/update" method="POST">
+                    <!-- Copy all form fields from update form for maintenance -->
+                    <input type="hidden" name="version_code" value="{{ update_info.version_code }}">
+                    <input type="hidden" name="version_name" value="{{ update_info.version_name }}">
+                    <input type="hidden" name="update_required" value="{{ 'on' if update_info.update_required else '' }}">
+                    <input type="hidden" name="update_title" value="{{ update_info.update_title }}">
+                    <input type="hidden" name="update_message" value="{{ update_info.update_message }}">
+                    <input type="hidden" name="download_url" value="{{ update_info.download_url }}">
+                    {% for item in update_info.whats_new %}
+                    <input type="hidden" name="whats_new[]" value="{{ item }}">
+                    {% endfor %}
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="maintenance_mode" name="maintenance_mode"
+                                   {% if update_info.maintenance_mode %}checked{% endif %}>
+                            <label for="maintenance_mode" style="margin: 0;">
+                                <strong>Aktifkan Maintenance Mode</strong> - Aplikasi akan ditutup sementara
+                            </label>
+                        </div>
+                        <p class="help-text">⚠️ Ketika aktif, semua user tidak bisa menggunakan aplikasi</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maintenance_title">Judul Maintenance</label>
+                        <input type="text" id="maintenance_title" name="maintenance_title" 
+                               value="{{ update_info.maintenance_title }}" 
+                               placeholder="Contoh: Aplikasi Sedang Maintenance">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maintenance_message">Pesan Maintenance</label>
+                        <textarea id="maintenance_message" name="maintenance_message" 
+                                  placeholder="Contoh: Mohon maaf, aplikasi sedang dalam perbaikan. Silakan coba beberapa saat lagi.">{{ update_info.maintenance_message }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maintenance_estimated_end">Estimasi Selesai (opsional)</label>
+                        <input type="text" id="maintenance_estimated_end" name="maintenance_estimated_end" 
+                               value="{{ update_info.maintenance_estimated_end }}" 
+                               placeholder="Contoh: 2 jam lagi, Besok pagi 09:00, dll">
+                        <p class="help-text">Informasi kapan maintenance diperkirakan selesai</p>
+                    </div>
+
+                    <button type="submit" class="btn-submit">💾 Simpan Pengaturan Maintenance</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- API Info -->
+        <div class="card">
+            <h2 class="section-title">🔗 API Endpoint</h2>
+            <div class="current-info">
+                <div class="info-row">
+                    <span class="info-label">Check Update:</span>
+                    <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                        GET /api/check-update?current_version_code=1
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Validate License:</span>
+                    <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                        POST /api/validate-license
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Check License:</span>
+                    <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                        POST /api/check-license
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Maintenance Status:</span>
+                    <span class="info-value" style="font-family: monospace; font-size: 12px;">
+                        GET /api/maintenance-status
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Generated Licenses -->
+    <div class="modal" id="generatedModal">
+        <div class="modal-content">
+            <h3>✅ Lisensi Berhasil Di-generate!</h3>
+            <div class="license-list" id="generatedLicensesList"></div>
+            <button class="btn-submit" onclick="closeModal()" style="margin-top: 20px;">Tutup</button>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById('tab-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function addWhatsNew() {
+            const container = document.getElementById('whats-new-container');
+            const newItem = document.createElement('div');
+            newItem.className = 'whats-new-item';
+            newItem.innerHTML = `
+                <input type="text" name="whats_new[]" placeholder="Contoh: Perbaikan bug">
+                <button type="button" class="btn-remove" onclick="removeWhatsNew(this)">✕</button>
+            `;
+            container.appendChild(newItem);
+        }
+
+        function removeWhatsNew(button) {
+            const container = document.getElementById('whats-new-container');
+            if (container.children.length > 1) {
+                button.parentElement.remove();
+            } else {
+                alert('Minimal harus ada 1 item!');
+            }
+        }
+
+        function toggleMaintenance() {
+            const toggle = document.getElementById('maintenanceToggle');
+            const card = document.getElementById('maintenanceCard');
+            const status = document.getElementById('maintenanceStatus');
+            
+            fetch('/admin/toggle-maintenance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const isActive = data.maintenance_mode;
+                    
+                    if (isActive) {
+                        toggle.classList.add('active');
+                        card.classList.add('active');
+                        status.classList.remove('inactive');
+                        status.classList.add('active');
+                        status.textContent = '⚠️ APLIKASI SEDANG MAINTENANCE';
+                    } else {
+                        toggle.classList.remove('active');
+                        card.classList.remove('active');
+                        status.classList.remove('active');
+                        status.classList.add('inactive');
+                        status.textContent = '✅ Aplikasi Normal';
+                    }
+                    
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Gagal mengubah status maintenance!');
+            });
+        }
+
+        function generateLicenses(event) {
+            event.preventDefault();
+            
+            const count = document.getElementById('license_count').value;
+            const note = document.getElementById('license_note').value;
+            
+            const formData = new FormData();
+            formData.append('count', count);
+            formData.append('note', note);
+            
+            fetch('/admin/generate-licenses', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show modal with generated licenses
+                    const list = document.getElementById('generatedLicensesList');
+                    list.innerHTML = '';
+                    
+                    data.licenses.forEach(license => {
+                        const item = document.createElement('div');
+                        item.className = 'license-item';
+                        item.innerHTML = `
+                            <span class="license-code">${license}</span>
+                            <button class="btn-primary" onclick="copyToClipboard('${license}')">Copy</button>
+                        `;
+                        list.appendChild(item);
+                    });
+                    
+                    document.getElementById('generatedModal').classList.add('active');
+                    
+                    // Reload page after modal is closed
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Gagal generate lisensi!');
+            });
+        }
+
+        function deleteLicense(code) {
+            if (!confirm('Yakin ingin menghapus lisensi ' + code + '?')) {
+                return;
+            }
+            
+            fetch('/admin/delete-license/' + code, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Lisensi berhasil dihapus!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Gagal menghapus lisensi!');
+            });
+        }
+
+        function revokeLicense(code) {
+            if (!confirm('Reset lisensi ' + code + '? Perangkat yang menggunakan lisensi ini akan kehilangan akses.')) {
+                return;
+            }
+            
+            fetch('/admin/revoke-license/' + code, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Lisensi berhasil direset!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Gagal reset lisensi!');
+            });
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Kode lisensi telah dicopy: ' + text);
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('generatedModal').classList.remove('active');
+            location.reload();
+        }
+    </script>
+</body>
+</html>
